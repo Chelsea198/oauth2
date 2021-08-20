@@ -92,3 +92,47 @@ Future<Client> resourceOwnerPasswordGrant(
       httpClient: httpClient,
       onCredentialsRefreshed: onCredentialsRefreshed);
 }
+
+Future<Client> resourceOwnerGrant(
+    Uri authorizationEndpoint, Map<String, dynamic> body,
+    {String? identifier,
+    String? secret,
+    Iterable<String>? scopes,
+    bool basicAuth = true,
+    CredentialsRefreshedCallback? onCredentialsRefreshed,
+    http.Client? httpClient,
+    String? delimiter,
+    Map<String, dynamic> Function(MediaType? contentType, String body)?
+        getParameters}) async {
+  delimiter ??= ' ';
+  var startTime = DateTime.now();
+
+  var headers = <String, String>{};
+  headers['Accept'] = 'application/json';
+
+  if (identifier != null) {
+    if (basicAuth) {
+      headers['Authorization'] = basicAuthHeader(identifier, secret!);
+    } else {
+      body['client_id'] = identifier;
+      if (secret != null) body['client_secret'] = secret;
+    }
+  }
+
+  if (scopes != null && scopes.isNotEmpty) {
+    body['scope'] = scopes.join(delimiter);
+  }
+
+  httpClient ??= http.Client();
+  var response = await httpClient.post(authorizationEndpoint,
+      headers: headers, body: body);
+
+  var credentials = handleAccessTokenResponse(
+      response, authorizationEndpoint, startTime, scopes?.toList(), delimiter,
+      getParameters: getParameters);
+  return Client(credentials,
+      identifier: identifier,
+      secret: secret,
+      httpClient: httpClient,
+      onCredentialsRefreshed: onCredentialsRefreshed);
+}
